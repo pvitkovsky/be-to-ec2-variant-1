@@ -1,8 +1,14 @@
 provider "aws" {
-  region     = var.region
-  access_key = var.access_key
-  secret_key = var.secret_key
+  profile = "reminders-stage"
+  region  = "eu-west-1"
 }
+
+resource "aws_key_pair" "my_key_pair" {
+  key_name   = "template-ec2-key"     
+  public_key = file("~/.ssh/id_rsa.pub") 
+}
+# TODO: template-ec2-key.pem where?
+# TODO: unaccessible anywhere; 
 
 ##### VPC Creation #####
 resource "aws_vpc" "syncz" {
@@ -84,6 +90,7 @@ resource "aws_instance" "example_server" {
   ami           = "ami-02141377eee7defb9" 
   instance_type = "t2.micro"
   subnet_id     = aws_subnet.subnet.id
+  key_name      = aws_key_pair.my_key_pair.key_name
 
   # Provisioning the JAR application
   user_data = <<-EOT
