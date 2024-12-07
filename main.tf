@@ -8,6 +8,8 @@ resource "aws_key_pair" "my_key_pair" {
   public_key = file("~/.ssh/template-ec2-key.pub") 
 }
 # TODO: add to security group: SSH, HTTP and ICMP protocols;; 
+# TODO: IAM role, allowed to go to S3
+# TODO: 
 
 ##### EC2 Instance #####
 resource "aws_instance" "example_server" {
