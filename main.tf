@@ -8,46 +8,50 @@ resource "aws_key_pair" "my_key_pair" {
   public_key = file("~/.ssh/template-ec2-key.pub") 
 }
 
-# resource "aws_security_group" "syncz-sg" {
-#   name        = "syncz-sg"
-#   description = "Allow HTTP, SSH and ICMP"
-#   vpc_id      = aws_vpc.main_vpc.id
+data "aws_vpc" "default" {
+  default = true
+}
 
-#   ingress {
-#     from_port   = 22
-#     to_port     = 22
-#     protocol    = "tcp"
-#     cidr_blocks = ["0.0.0.0/0"] # Allow SSH from anywhere
-#   }
+resource "aws_security_group" "syncz-sg" {
+  name        = "syncz-sg"
+  description = "Allow HTTP, SSH and ICMP"
+  vpc_id      = data.aws_vpc.default.id
 
-#   ingress {
-#     from_port   = 80
-#     to_port     = 80
-#     protocol    = "tcp"
-#     cidr_blocks = ["0.0.0.0/0"] 
-#   }
+  ingress {
+    from_port   = 22
+    to_port     = 22
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"] # Allow SSH from anywhere
+  }
 
-#   ingress {
-#     from_port   = 8080
-#     to_port     = 8080
-#     protocol    = "tcp"
-#     cidr_blocks = ["0.0.0.0/0"] 
-#   }
+  ingress {
+    from_port   = 80
+    to_port     = 80
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"] 
+  }
+
+  ingress {
+    from_port   = 8080
+    to_port     = 8080
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"] 
+  }
   
-#   ingress {
-#     from_port   = -1
-#     to_port     = -1
-#     protocol    = "icmp"
-#     cidr_blocks = ["0.0.0.0/0"] # Allow ping from anywhere
-#   }
+  ingress {
+    from_port   = -1
+    to_port     = -1
+    protocol    = "icmp"
+    cidr_blocks = ["0.0.0.0/0"] # Allow ping from anywhere
+  }
 
-#   egress {
-#     from_port   = 0
-#     to_port     = 0
-#     protocol    = "-1"
-#     cidr_blocks = ["0.0.0.0/0"] # Allow all outbound traffic
-#   }
-# } # TODO: needs VPCs
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"] # Allow all outbound traffic
+  }
+} 
 
 # IAM Role
 resource "aws_iam_role" "s3_access_role" {
@@ -65,6 +69,9 @@ resource "aws_iam_role" "s3_access_role" {
       }
     ]
   })
+  tags = {
+    Environment = "TerraformManaged"
+  }
 }
 
 # IAM Policy for S3 Access
@@ -102,15 +109,13 @@ resource "aws_iam_instance_profile" "ec2_instance_profile" {
   role = aws_iam_role.s3_access_role.name
 }
 
-# TODO: IAM role, allowed to go to S3
-# TODO: 
 
 ##### EC2 Instance #####
 resource "aws_instance" "example_server" {
   ami           = "ami-02141377eee7defb9" 
   instance_type = "t2.micro"
   key_name      = aws_key_pair.my_key_pair.key_name
-  # security_groups = [aws_security_group.syncz-sg.name] 
+  security_groups = [aws_security_group.syncz-sg.name] 
   iam_instance_profile = aws_iam_instance_profile.ec2_instance_profile.name
 
   # Provisioning the JAR application
