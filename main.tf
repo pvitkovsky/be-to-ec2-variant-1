@@ -8,14 +8,56 @@ resource "aws_key_pair" "my_key_pair" {
   public_key = file("~/.ssh/template-ec2-key.pub") 
 }
 
-data "aws_vpc" "default" {
-  default = true
+
+# VPC
+resource "aws_vpc" "syncz_vpc" {
+  cidr_block = "10.0.0.0/16"
+  tags = {
+    Name = "Template Deploy Environment"
+  }
+}
+
+# Subnet
+resource "aws_subnet" "syncz_public_subnet" {
+  vpc_id                  = aws_vpc.syncz_vpc.id
+  cidr_block              = "10.0.1.0/24"
+  map_public_ip_on_launch = true
+  tags = {
+    Name = "Template Deploy Environment"
+  }
+}
+
+# Internet Gateway
+resource "aws_internet_gateway" "igw" {
+  vpc_id = aws_vpc.syncz_vpc.id
+  tags = {
+    Name = "Template Deploy Environment"
+  }
+}
+
+# Route Table
+resource "aws_route_table" "public_rt" {
+  vpc_id = aws_vpc.syncz_vpc.id
+
+  route {
+    cidr_block = "0.0.0.0/0"
+    gateway_id = aws_internet_gateway.igw.id
+  }
+  tags = {
+    Name = "Template Deploy Environment"
+  }
+}
+
+# Associate Subnet with Route Table
+resource "aws_route_table_association" "public_rt_assoc" {
+  subnet_id      = aws_subnet.syncz_public_subnet.id
+  route_table_id = aws_route_table.public_rt.id
 }
 
 resource "aws_security_group" "syncz-sg" {
   name        = "syncz-sg"
   description = "Allow HTTP, SSH and ICMP"
-  vpc_id      = data.aws_vpc.default.id
+  vpc_id      = aws_vpc.syncz_vpc.id
 
   ingress {
     from_port   = 22
@@ -115,7 +157,8 @@ resource "aws_instance" "example_server" {
   ami           = "ami-02141377eee7defb9" 
   instance_type = "t2.micro"
   key_name      = aws_key_pair.my_key_pair.key_name
-  security_groups = [aws_security_group.syncz-sg.name] 
+  subnet_id =     aws_subnet.syncz_public_subnet.id
+  vpc_security_group_ids = [aws_security_group.syncz-sg.id] 
   iam_instance_profile = aws_iam_instance_profile.ec2_instance_profile.name
 
   # Provisioning the JAR application
