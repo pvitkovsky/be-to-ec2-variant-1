@@ -177,3 +177,26 @@ resource "aws_instance" "example_server" {
     Name = "Template Deploy Instance"
   }
 }
+
+# Elastic IP
+# resource "aws_eip" "example_eip" {
+#   instance = aws_instance.example_server.public_ip
+# }
+
+# DNS 
+data "aws_route53_zone" "fortunate_work" {
+  name         = "stage.fortunate.work"
+  private_zone = false
+}
+
+resource "aws_route53_record" "ec2_record" {
+  zone_id =  data.aws_route53_zone.fortunate_work.zone_id
+  name    = "example.deploy.stage.fortunate.work"
+  type    = "A"
+  ttl     = 300
+  records = [aws_instance.example_server.public_ip]
+}
+
+# TODO: https://www.whatsmydns.net/#A/example.deploy.stage.fortunate.work
+# clarify what's not OK - DNS doesn't get propagated from root to staging org?
+# TODO: next probably CI/CD with GitHub here because would want to add authorisation, and that relies on Java;
