@@ -170,6 +170,7 @@ resource "aws_instance" "example_server" {
               echo "Java Version: $(java -version)"
               mkdir /home/ec2-user/app 
               aws s3 cp s3://${var.s3_bucket_name}/${var.jar_file_name} /home/ec2-user/app/app.jar
+              nohup java -jar /home/ec2-user/app/app.jar > /home/ec2-user/app/app.log 2>&1 &
               EOT
 
   tags = {
