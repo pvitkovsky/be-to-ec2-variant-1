@@ -153,11 +153,12 @@ resource "aws_iam_instance_profile" "ec2_instance_profile" {
 
 
 ##### EC2 Instance #####
+# TODO: private IP? 
 resource "aws_instance" "example_server" {
   ami           = "ami-02141377eee7defb9" 
   instance_type = "t2.micro"
   key_name      = aws_key_pair.my_key_pair.key_name
-  subnet_id =     aws_subnet.syncz_public_subnet.id
+  subnet_id     = aws_subnet.syncz_public_subnet.id
   vpc_security_group_ids = [aws_security_group.syncz-sg.id] 
   iam_instance_profile = aws_iam_instance_profile.ec2_instance_profile.name
 
@@ -168,9 +169,7 @@ resource "aws_instance" "example_server" {
               yum install -y java-17-amazon-corretto
               echo "Java Version: $(java -version)"
               mkdir /home/ec2-user/app 
-              # TODO: add IAM role, or wont work;
               aws s3 cp s3://${var.s3_bucket_name}/${var.jar_file_name} /home/ec2-user/app/app.jar
-              nohup java -jar /home/ec2-user/app/app.jar > /home/ec2-user/app/app.log 2>&1 &
               EOT
 
   tags = {
@@ -178,10 +177,9 @@ resource "aws_instance" "example_server" {
   }
 }
 
-# Elastic IP
-# resource "aws_eip" "example_eip" {
-#   instance = aws_instance.example_server.public_ip
-# }
+resource "aws_eip" "example_eip" {
+  instance = aws_instance.example_server.id
+}
 
 # DNS 
 data "aws_route53_zone" "fortunate_work" {
@@ -194,9 +192,9 @@ resource "aws_route53_record" "ec2_record" {
   name    = "example.deploy.stage.fortunate.work"
   type    = "A"
   ttl     = 300
-  records = [aws_instance.example_server.public_ip]
+  records = [aws_eip.example_eip.public_ip]
 }
 
 # TODO: https://www.whatsmydns.net/#A/example.deploy.stage.fortunate.work
-# clarify what's not OK - DNS doesn't get propagated from root to staging org?
+# To WBS - create hosted zone a.domain.com in child org, and add NS record to domain.com at parent with NS type and 4 servers of a.
 # TODO: next probably CI/CD with GitHub here because would want to add authorisation, and that relies on Java;
