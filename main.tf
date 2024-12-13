@@ -154,6 +154,7 @@ resource "aws_iam_instance_profile" "ec2_instance_profile" {
 
 ##### EC2 Instance #####
 # TODO: private IP? 
+# TODO: steady state: logs should be copied elsewhere; 
 resource "aws_instance" "example_server" {
   ami           = "ami-02141377eee7defb9" 
   instance_type = "t2.micro"
@@ -165,13 +166,36 @@ resource "aws_instance" "example_server" {
   # Provisioning the JAR application
   user_data = <<-EOT
               #!/bin/bash
+              # Update the system
               yum update -y
               yum install -y java-17-amazon-corretto
-              echo "Java Version: $(java -version)"
-              mkdir /home/ec2-user/app 
+              mkdir -p /home/ec2-user/app
               aws s3 cp s3://${var.s3_bucket_name}/${var.jar_file_name} /home/ec2-user/app/app.jar
-              nohup java -jar /home/ec2-user/app/app.jar > /home/ec2-user/app/app.log 2>&1 &
+              
+              cat <<EOF > /etc/systemd/system/myapp.service
+              
+              [Unit]
+              Description=Example Deploy BE
+              After=network.target
+
+              [Service]
+              ExecStart=/usr/bin/java -jar /home/ec2-user/app/app.jar
+              WorkingDirectory=/home/ec2-user/app
+              StandardOutput=journal
+              StandardError=journal
+              Restart=always
+              User=ec2-user
+
+              [Install]
+              WantedBy=multi-user.target
+              EOF
+
+              # Reload systemd, enable and start the service
+              systemctl daemon-reload
+              systemctl enable myapp.service
+              systemctl start myapp.service
               EOT
+              
 
   tags = {
     Name = "Template Deploy Instance"
